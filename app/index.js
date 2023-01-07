@@ -13,8 +13,6 @@ class Task {
         this.Color = `hsl(${Math.random() * 360 }, 100%, 90%)`;
         this.ReadOnly = false;
     }
-
-    
 }//cls
 
 class StickyNotes {
@@ -67,10 +65,20 @@ class StickyNotes {
     }
 
     RemoveRecord(Id) {
-        var newList = this.TaskList.filter(t => t.taskid != Id && t.ReadOnly == false);
+
+        var rtor = this.TaskList.filter(t => t.taskid == Id);
+
+        if(rtor[0].ReadOnly == false)
+        {    
+            alert("Please comeplet the task before removing it");
+            return false;
+        }
+
+        var newList = this.TaskList.filter(t => t.taskid != Id);
         this.#IndexRecords();
 
         localStorage.setItem(this.DB_NAME, JSON.stringify(newList));
+        return true;
     }
     
     SyncRecord() {
@@ -110,14 +118,30 @@ class StickyNotes {
         var string = `${myDate.getFullYear()}-${(myDate.getMonth() + 1)}-${myDate.getDate()} ${myDate.getHours()}: ${myDate.getMinutes()}:${myDate.getSeconds()}`;
         return string;
     }
-//    <div id="tasker" ondrop="drop(event)" ondragover="allowDrop(event)></div>
+
+    FindRecord(tskid){
+        var rtor = this.TaskList.filter(t => t.taskid == tskid);
+        return rtor[0];
+    }
+
     TaskAsHtml(task){
         var status = "";
-        if(task.Completed == true) status = "checked";
+        var pin = `<input type='button' name="${task.taskid}"  class='closeButtonStyle' value='x'>`;
+        var style = `style="background-color:${task.Color}"`;
+        var taskcls = `class="task"`;
+        var droppable ="";
+        if(task.Completed == true)
+        {
+            status = "checked";
+            pin = `<input type='button' name="${task.taskid}" onclick= "HandleRemove(this)" class='closeButtonStyle' value='x'>`;
+            style="";
+            taskcls=`class="completedtask"`;
+            droppable=`ondrop="drop(event)" ondragover="allowDrop(event)"`;
+        }
 
         var tag = 
-       `<div id="task${task.taskid}" class="task" style="background-color:${task.Color}" ondrop="drop(event)" ondragover="allowDrop(event)" draggable="true" ondragstart="drag(event)" >
-            <input type='button' name="${task.taskid}" onclick= "HandleRemove(this)" class='closeButtonStyle' value='o'>
+       `<div id="task${task.taskid}" ${taskcls} ${style} draggable="true" ondragstart="dragStart(event)" ${droppable}>
+            ${pin}
             <div id="${task.taskid}" onclick="HandleEditable(this)" onfocusout="HandleChanged(this)" class="entry">
             ${task.value} 
             </div>
@@ -131,7 +155,11 @@ class StickyNotes {
 }//cls
 
 //
-let sn = new StickyNotes("sn01");
+var url = new URL(window.location.href);
+debugger;
+var db_name = url.searchParams.get("db")|| "sn01";
+
+let sn = new StickyNotes(db_name);
 
 function Load() { 
     debugger;
@@ -161,19 +189,6 @@ function addtask() {
 }//
 
 
-function allowDrop(ev) {
-  ev.preventDefault();
-}
-
-function drag(ev) {
-  ev.dataTransfer.setData("text", ev.target.id);
-}
-
-function drop(ev) {
-  ev.preventDefault();
-  var data = ev.dataTransfer.getData("text");
-  ev.target.appendChild(document.getElementById(data));
-}
 
 //event handler
 function HandleEditable(btn){
@@ -187,6 +202,7 @@ function HandleMarkDone(t){ debugger;
     var bool = t.checked;
 
     sn.MarkDone(Id,bool);
+    window.location.reload();
 }
 
 //event handler
@@ -199,24 +215,18 @@ function HandleChanged(btn){
 }
 
 //event handler
-function handleEnter(e)
-{
-    if(e.keyCode === 13){
-        e.preventDefault(); // Ensure it is only this code that runs
-
-        addtask();
-    }
-}
-
-//event handler
 function HandleRemove(btn) {
     debugger;
-    var row = btn.parentNode;
-    row.parentNode.removeChild(row);
+
     //TaskList.pop(parseInt(btn.name));
     //var newList = TaskList.filter(t => t.taskid != btn.name);
     //Sync(newList);
-    sn.RemoveRecord(btn.name);
+    var res = sn.RemoveRecord(btn.name);
+    if(res == true)
+    {
+        var row = btn.parentNode;
+        row.parentNode.removeChild(row);
+    }
 }
 
 
@@ -231,9 +241,15 @@ debugger;
 function AddToTable(tsk) {
     var innerHTML = sn.TaskAsHtml(tsk);
    //cell1.innerHTML = innerHTML;
-
-    var tasker = document.getElementById("tasker");
-    tasker.innerHTML += innerHTML;  //"<center><b>killercodes</b></center>";
+    if(tsk.Completed == false)
+    {
+        var tasker = document.getElementById("tasker");
+        tasker.innerHTML += innerHTML;  //"<center><b>killercodes</b></center>";
+    }
+    else{
+        var tasker = document.getElementById("tasker");
+        tasker.innerHTML += innerHTML;
+    }
 
     var taskText = document.getElementById('task-text');
     taskText.value = ''
@@ -241,4 +257,3 @@ function AddToTable(tsk) {
 
 //Load
 Load();
-
